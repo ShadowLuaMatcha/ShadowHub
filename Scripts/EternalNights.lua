@@ -483,8 +483,19 @@ local ThemeNames = {"Dracula","Fatality","Gamesense","TokyoNight"}
 local Set = Settings:AddSection("MENU", 1)
 Set:AddDropdown("Theme", ThemeNames, "Fatality", function(v) Hub:SetTheme(v) end)
 Set:AddToggle("Watermark", true, function(v) wm:SetVisible(v) end)
-local menuKeyBind = Set:AddKeybind("Menu Key", 0x70, "Toggle", function(v)
-    Hub.MenuKey = menuKeyBind:Get()
+local menuKeyRef = Set:AddKeybind("Menu Key", 0x70, "Hold", function(v) end)
+
+-- Watch for keybind changes and sync to Hub.MenuKey
+task.spawn(function()
+    local last = 0x70
+    while Hub._running do
+        local cur = menuKeyRef:Get()
+        if cur ~= last and cur ~= 0 then
+            Hub.MenuKey = cur
+            last = cur
+        end
+        task.wait(0.1)
+    end
 end)
 Set:AddDropdown("ESP FPS", {"30","60","120","144","240"}, "30", function(v)
     CFG.renderWait = 1 / tonumber(v)
@@ -514,6 +525,19 @@ Inf:AddSeparator()
 Inf:AddLabel("Player: "..player.Name)
 Inf:AddLabel("PlaceId: "..tostring(game.PlaceId))
 Inf:AddSeparator()
-Inf:AddButton("Destroy", function() Hub:Destroy(); wm:Destroy() end)
+Inf:AddButton("Destroy", function()
+    CFG.animEnable=false; CFG.itemEnable=false
+    CFG.coinEnable=false; CFG.chestEnable=false
+
+    local toRemove={}
+    for inst in pairs(espObjects) do toRemove[#toRemove+1]=inst end
+    for _,inst in ipairs(toRemove) do destroyESP(inst) end
+
+    -- Re-enable roblox input before destroying
+    pcall(setrobloxinput, true)
+
+    Hub:Destroy()
+    wm:Destroy()
+end)
 
 print("Eternal Nights ESP loaded")

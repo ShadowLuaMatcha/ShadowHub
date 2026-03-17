@@ -1,4 +1,4 @@
-local src = game:HttpGet("https://raw.githubusercontent.com/ShadowLuaMatcha/ShadowHub/refs/heads/main/LibUI.lua")
+local src = game:HttpGet("https://pastebin.com/raw/cGLXkfhZ")
 local fn, err = loadstring(src)
 if not fn then error("Failed to load lib: "..(err or "?")) end
 fn()
@@ -163,12 +163,19 @@ local function createESP(inst, kind)
     if espObjects[inst] then return end
     local col = Color3.new(1,1,1)
     local d = {
-        kind      = kind,
-        box       = newBox(col, kind=="anim" and 1.5 or 1),
-        label     = newText(col),
-        distLabel = newText(Color3.new(1,1,1)),
-        tracer    = newLine(col, 1),
+        kind        = kind,
+        box         = newBox(col, kind=="anim" and 1.5 or 1),
+        label       = newText(col),
+        distLabel   = newText(Color3.new(1,1,1)),
+        tracer      = newLine(col, 1),
     }
+    if kind=="anim" then
+        d.statusLabel = newText(col)
+        d.lastPos     = nil
+        d.isMoving    = false
+        d.notified    = false
+        d.stableCount = 0
+    end
     espObjects[inst] = d
 end
 
@@ -177,6 +184,7 @@ local function destroyESP(inst)
     hideBox(d.box)
     for _,l in ipairs(d.box) do l:Remove() end
     d.label:Remove(); d.distLabel:Remove(); d.tracer:Remove()
+    if d.statusLabel then d.statusLabel:Remove() end
     espObjects[inst] = nil
 end
 
@@ -185,6 +193,7 @@ local function hideESP(d)
     d.label.Visible=false
     d.distLabel.Visible=false
     d.tracer.Visible=false
+    if d.statusLabel then d.statusLabel.Visible=false end
 end
 
 -- ── SCAN LOOP ─────────────────────────────────────────────────────
@@ -295,6 +304,29 @@ task.spawn(function()
             local okP, rPos = pcall(function() return root.Position end)
             if not okP or not rPos then hideESP(d); continue end
 
+            -- Movement detection runs every frame regardless of onScreen
+            if kind=="anim" and pPos and d.lastPos then
+                local okM, mag = pcall(function() return (rPos-d.lastPos).Magnitude end)
+                if okM and mag then
+                    if mag > 0.08 then
+                        d.stableCount = 0
+                        if not d.isMoving then
+                            d.isMoving = true
+                            if CFG.animNotifyMove and not d.notified then
+                                d.notified = true
+                                pcall(notify, inst.Name.." is moving!", inst.Name, 4)
+                            end
+                        end
+                    else
+                        d.stableCount = d.stableCount + 1
+                        if d.stableCount > 45 and d.isMoving then
+                            d.isMoving = false; d.notified = false
+                        end
+                    end
+                end
+            end
+            if kind=="anim" then d.lastPos = rPos end
+
             -- Distance
             if not pPos then hideESP(d); continue end
             local dToObj = getDist(pPos, rPos)
@@ -320,20 +352,30 @@ task.spawn(function()
             local x, y = sp.X, sp.Y
             local distStr = "["..dToObj.."m]"
 
-            -- helper: draw name in box color, distance in white, side by side
-            local function drawLabels(col, name, topY, showName, showDist)
+            -- helper for item/coin/chest: "Name [80m]" above box, name in col, dist in white
+            local function drawInlineLabel(col, name, topY, showName, showDist)
+                if not showName and not showDist then
+                    d.label.Visible=false; d.distLabel.Visible=false; return
+                end
+                -- name part
                 if showName and name~="" then
                     d.label.Text=name; d.label.Color=col
-                    local dx = showDist and (#name*6+4) or 0
-                    d.label.Position=Vector2.new(x - (showDist and (#distStr*6/2) or 0), topY)
+                    -- position: if both shown, shift left so combined looks centered
+                    local nameW  = #name * 6
+                    local distW  = showDist and (#distStr * 6 + 6) or 0
+                    local totalW = nameW + distW
+                    d.label.Position=Vector2.new(x - totalW/2 + nameW/2, topY)
                     d.label.Visible=true
                 else
                     d.label.Visible=false
                 end
+                -- dist part right after name
                 if showDist then
-                    local nameW = showName and #name*6 or 0
-                    d.distLabel.Text=distStr; d.distLabel.Color=Color3.new(1,1,1)
-                    d.distLabel.Position=Vector2.new(x + (showName and (nameW/2 + 2) or 0), topY)
+                    local nameW = showName and (#name * 6) or 0
+                    local distW = #distStr * 6
+                    local totalW = nameW + (showName and 6 or 0) + distW
+                    d.distLabel.Text=" "..distStr; d.distLabel.Color=Color3.new(1,1,1)
+                    d.distLabel.Position=Vector2.new(x - totalW/2 + nameW + (showName and 6 or 0) + distW/2, topY)
                     d.distLabel.Visible=true
                 else
                     d.distLabel.Visible=false
@@ -344,29 +386,47 @@ task.spawn(function()
                 local col = CFG.itemBoxColor
                 setBoxColor(d.box, col)
                 if CFG.itemBox then drawCornerBox(d.box,x,y,ITEM_HW,ITEM_HH,CORNER_LEN) else hideBox(d.box) end
-                drawLabels(col, inst.Name, y-ITEM_HH-14, CFG.itemName, CFG.itemDistance)
+                drawInlineLabel(col, inst.Name, y-ITEM_HH-14, CFG.itemName, CFG.itemDistance)
                 drawTracer(d.tracer, col, x, y, CFG.itemTraceline)
 
             elseif kind=="coin" then
                 local col = CFG.coinBoxColor
                 setBoxColor(d.box, col)
                 if CFG.coinBox then drawCornerBox(d.box,x,y,COIN_HW,COIN_HH,5) else hideBox(d.box) end
-                drawLabels(col, "Coin", y-COIN_HH-14, CFG.coinName, CFG.coinDistance)
+                drawInlineLabel(col, "Coin", y-COIN_HH-14, CFG.coinName, CFG.coinDistance)
                 drawTracer(d.tracer, col, x, y, CFG.coinTraceline)
 
             elseif kind=="chest" then
                 local col = CFG.chestBoxColor
                 setBoxColor(d.box, col)
                 if CFG.chestBox then drawCornerBox(d.box,x,y,CHEST_HW,CHEST_HH,CORNER_LEN) else hideBox(d.box) end
-                drawLabels(col, "Chest", y-CHEST_HH-14, CFG.chestName, CFG.chestDistance)
+                drawInlineLabel(col, "Chest", y-CHEST_HH-14, CFG.chestName, CFG.chestDistance)
                 drawTracer(d.tracer, col, x, y, CFG.chestTraceline)
 
             elseif kind=="anim" then
                 local col = ANIM_COLORS[inst.Name] or CFG.animBoxColor
                 setBoxColor(d.box, col)
                 if CFG.animBox then drawCornerBox(d.box,x,y,ANIM_HW,ANIM_HH,CORNER_LEN+6) else hideBox(d.box) end
-                drawLabels(col, inst.Name, y-ANIM_HH-14, CFG.animName, CFG.animDistance)
+                -- name above box, distance below box
+                if CFG.animName and d.label then
+                    d.label.Text=inst.Name; d.label.Color=col
+                    d.label.Position=Vector2.new(x, y-ANIM_HH-14); d.label.Visible=true
+                elseif d.label then d.label.Visible=false end
+                if CFG.animDistance and d.distLabel then
+                    d.distLabel.Text=distStr; d.distLabel.Color=Color3.new(1,1,1)
+                    d.distLabel.Position=Vector2.new(x, y+ANIM_HH+8); d.distLabel.Visible=true
+                elseif d.distLabel then d.distLabel.Visible=false end
                 drawTracer(d.tracer, col, x, y, CFG.animTraceline)
+
+                -- Status below distance
+                if CFG.animStatus and d.statusLabel then
+                    local statusStr = d.isMoving and "Moving" or "Standing"
+                    d.statusLabel.Text=statusStr; d.statusLabel.Color=col
+                    local statusY = CFG.animDistance and (y+ANIM_HH+24) or (y+ANIM_HH+8)
+                    d.statusLabel.Position=Vector2.new(x, statusY); d.statusLabel.Visible=true
+                elseif d.statusLabel then
+                    d.statusLabel.Visible=false
+                end
             end
         end
     end
@@ -423,6 +483,9 @@ local ThemeNames = {"Dracula","Fatality","Gamesense","TokyoNight"}
 local Set = Settings:AddSection("MENU", 1)
 Set:AddDropdown("Theme", ThemeNames, "Fatality", function(v) Hub:SetTheme(v) end)
 Set:AddToggle("Watermark", true, function(v) wm:SetVisible(v) end)
+local menuKeyBind = Set:AddKeybind("Menu Key", 0x70, "Toggle", function(v)
+    Hub.MenuKey = menuKeyBind:Get()
+end)
 Set:AddDropdown("ESP FPS", {"30","60","120","144","240"}, "30", function(v)
     CFG.renderWait = 1 / tonumber(v)
 end)

@@ -450,7 +450,6 @@ Ani:AddToggle("Name",             true,  function(v) CFG.animName=v       end)
 Ani:AddToggle("Distance",         true,  function(v) CFG.animDistance=v   end)
 Ani:AddToggle("Traceline",        false, function(v) CFG.animTraceline=v  end)
 Ani:AddSlider("Max Distance", {Min=50,Max=1000,Default=300,Suffix="m"}, function(v) CFG.animMaxDist=v end)
-Ani:AddColorPicker("Box Color", Color3.fromRGB(255,50,50), function(c) CFG.animBoxColor=c end)
 
 Items:AddToggle("Enable",    false, function(v) CFG.itemEnable=v    end)
 Items:AddToggle("Box",       true,  function(v) CFG.itemBox=v       end)

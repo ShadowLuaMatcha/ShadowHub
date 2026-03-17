@@ -3,7 +3,7 @@
 --         Red particles + dark theme + Solid Blinking Eye
 -- =============================================
 
-local GAMES_URL        = "YOUR_GAMES_URL_HERE"
+local GAMES_URL        = "https://raw.githubusercontent.com/ShadowLuaMatcha/ShadowHub/refs/heads/main/GameID.lua"
 
 local LOADER_TITLE     = "ShadowLua"
 local LOADER_SUBTITLE  = "Loading..."

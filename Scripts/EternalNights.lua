@@ -1,4 +1,4 @@
-local src = game:HttpGet("https://pastebin.com/raw/cGLXkfhZ")
+local src = game:HttpGet("https://raw.githubusercontent.com/ShadowLuaMatcha/ShadowHub/refs/heads/main/LibUI.lua")
 local fn, err = loadstring(src)
 if not fn then error("Failed to load lib: "..(err or "?")) end
 fn()

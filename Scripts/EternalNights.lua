@@ -40,7 +40,8 @@ local CFG = {
     chestMaxDist   = 300,
     chestBoxColor  = Color3.fromRGB(200, 140, 50),
 
-    fontSize = 13,
+    fontSize    = 13,
+    renderWait  = 0.03,
 }
 
 -- Static box sizes (screen pixels)
@@ -262,7 +263,7 @@ end)
 -- ── RENDER: runs at ~30fps to stay smooth ───────────────────────
 task.spawn(function()
     while true do
-        task.wait(0.03)  -- ~30fps, smooth without hammering CPU
+        task.wait(CFG.renderWait)
 
         local pPos = playerPos()
 
@@ -422,6 +423,9 @@ local ThemeNames = {"Dracula","Fatality","Gamesense","TokyoNight"}
 local Set = Settings:AddSection("MENU", 1)
 Set:AddDropdown("Theme", ThemeNames, "Fatality", function(v) Hub:SetTheme(v) end)
 Set:AddToggle("Watermark", true, function(v) wm:SetVisible(v) end)
+Set:AddDropdown("ESP FPS", {"30","60","120","144","240"}, "30", function(v)
+    CFG.renderWait = 1 / tonumber(v)
+end)
 
 local Cfg = Settings:AddSection("CONFIG", 2)
 Cfg:AddTextbox("Config Name", "default", function(v) end, "config name")

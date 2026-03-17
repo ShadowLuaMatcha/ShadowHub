@@ -352,30 +352,27 @@ task.spawn(function()
             local x, y = sp.X, sp.Y
             local distStr = "["..dToObj.."m]"
 
-            -- helper for item/coin/chest: "Name [80m]" above box, name in col, dist in white
             local function drawInlineLabel(col, name, topY, showName, showDist)
                 if not showName and not showDist then
                     d.label.Visible=false; d.distLabel.Visible=false; return
                 end
-                -- name part
+                local GAP = 14  -- space between name and [dist]
                 if showName and name~="" then
                     d.label.Text=name; d.label.Color=col
-                    -- position: if both shown, shift left so combined looks centered
                     local nameW  = #name * 6
-                    local distW  = showDist and (#distStr * 6 + 6) or 0
+                    local distW  = showDist and (#distStr * 6 + GAP) or 0
                     local totalW = nameW + distW
                     d.label.Position=Vector2.new(x - totalW/2 + nameW/2, topY)
                     d.label.Visible=true
                 else
                     d.label.Visible=false
                 end
-                -- dist part right after name
                 if showDist then
-                    local nameW = showName and (#name * 6) or 0
-                    local distW = #distStr * 6
-                    local totalW = nameW + (showName and 6 or 0) + distW
-                    d.distLabel.Text=" "..distStr; d.distLabel.Color=Color3.new(1,1,1)
-                    d.distLabel.Position=Vector2.new(x - totalW/2 + nameW + (showName and 6 or 0) + distW/2, topY)
+                    local nameW  = showName and (#name * 6) or 0
+                    local distW  = #distStr * 6
+                    local totalW = nameW + (showName and GAP or 0) + distW
+                    d.distLabel.Text=distStr; d.distLabel.Color=Color3.new(1,1,1)
+                    d.distLabel.Position=Vector2.new(x - totalW/2 + nameW + (showName and GAP or 0) + distW/2, topY)
                     d.distLabel.Visible=true
                 else
                     d.distLabel.Visible=false
